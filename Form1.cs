@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using AForge.Video;
 using AForge.Video.DirectShow;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using HNUDIP;
 
 
 namespace ImageProcessing
@@ -20,6 +23,7 @@ namespace ImageProcessing
         FilterInfoCollection filterInfoCollection;
         VideoCaptureDevice device;
         int mode;
+        int col_mode = 0;
         int value;
         public Form1()
         {
@@ -369,6 +373,63 @@ namespace ImageProcessing
             mode = 8;
         }
 
+        private void convulToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void smoothToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            col_mode = 1;
+        }
+
+        private void label7_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label9_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void gaussianBlurToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            ImageProcess.copyImage(ref loaded, ref processed);
+            BitmapFilter.Smooth(processed, trackBar6.Value);
+        }
+
+        private void trackBar6_Scroll(object sender, EventArgs e)
+        {
+            BasicDIP.CopyImage(ref loaded, ref processed);
+            switch (col_mode)
+            {
+                case 1:
+                    BitmapFilter.Smooth(processed, trackBar6.Value);
+                    break;
+                case 2:
+                    BitmapFilter.GaussianBlur(processed, trackBar6.Value);
+                    break;
+                case 3:
+                    BitmapFilter.MeanRemoval(processed, trackBar6.Value);
+                    break;
+                case 4:
+                    BitmapFilter.Sharpen(processed, trackBar6.Value);
+                    break;
+            }
+            pictureBox2.Image = processed;
+        }
+
+        private void meanRemovalToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            col_mode = 3;
+        }
+
+        private void sharpenToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            col_mode = 4;
+        }
+
         private void button3_Click(object sender, EventArgs e)
         {
             if (loaded == null || processed == null)
@@ -376,7 +437,7 @@ namespace ImageProcessing
                 MessageBox.Show("Both loaded and processed images are required.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            
+
             if (processed.Width != loaded.Width || processed.Height != loaded.Height)
             {
                 Bitmap resizedProcessed = new Bitmap(loaded.Width, loaded.Height);
@@ -391,21 +452,65 @@ namespace ImageProcessing
             int greenThreshold = 50;
             subtracted = new Bitmap(loaded.Width, loaded.Height);
 
-            for (int i = 0; i < loaded.Width && i < processed.Width; i++)
+            // Lock bits for direct access without parallel processing
+            BitmapData loadedData = loaded.LockBits(new Rectangle(0, 0, loaded.Width, loaded.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            BitmapData processedData = processed.LockBits(new Rectangle(0, 0, processed.Width, processed.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            BitmapData subtractedData = subtracted.LockBits(new Rectangle(0, 0, subtracted.Width, subtracted.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
+            // Get byte pointers
+            IntPtr ptrLoaded = loadedData.Scan0;
+            IntPtr ptrProcessed = processedData.Scan0;
+            IntPtr ptrSubtracted = subtractedData.Scan0;
+
+            // Allocate arrays for faster access
+            int numBytes = Math.Abs(loadedData.Stride) * loaded.Height;
+            byte[] loadedBytes = new byte[numBytes];
+            byte[] processedBytes = new byte[numBytes];
+            byte[] subtractedBytes = new byte[numBytes];
+
+            // Copy data to byte arrays
+            Marshal.Copy(ptrLoaded, loadedBytes, 0, numBytes);
+            Marshal.Copy(ptrProcessed, processedBytes, 0, numBytes);
+
+            // Sequential processing of pixels
+            for (int j = 0; j < loaded.Height; j++)
             {
-                for (int j = 0; j < loaded.Height && j < processed.Height; j++)
+                for (int i = 0; i < loaded.Width; i++)
                 {
-                    Color pixel = loaded.GetPixel(i, j);
-                    if (pixel.G > pixel.R + greenThreshold && pixel.G > pixel.B + greenThreshold)
+                    int index = j * loadedData.Stride + i * 4;
+                    byte blue = loadedBytes[index];
+                    byte green = loadedBytes[index + 1];
+                    byte red = loadedBytes[index + 2];
+
+                    // Check if pixel is "green enough"
+                    if (green > red + greenThreshold && green > blue + greenThreshold)
                     {
-                        subtracted.SetPixel(i, j, processed.GetPixel(i, j));
+                        // Use processed pixel
+                        subtractedBytes[index] = processedBytes[index];       // Blue
+                        subtractedBytes[index + 1] = processedBytes[index + 1]; // Green
+                        subtractedBytes[index + 2] = processedBytes[index + 2]; // Red
+                        subtractedBytes[index + 3] = processedBytes[index + 3]; // Alpha
                     }
                     else
                     {
-                        subtracted.SetPixel(i, j, pixel);
+                        // Use original loaded pixel
+                        subtractedBytes[index] = blue;
+                        subtractedBytes[index + 1] = green;
+                        subtractedBytes[index + 2] = red;
+                        subtractedBytes[index + 3] = loadedBytes[index + 3]; // Alpha
                     }
                 }
             }
+
+            // Copy modified byte array back to bitmap
+            Marshal.Copy(subtractedBytes, 0, ptrSubtracted, numBytes);
+
+            // Unlock bits after processing
+            loaded.UnlockBits(loadedData);
+            processed.UnlockBits(processedData);
+            subtracted.UnlockBits(subtractedData);
+
+            // Display the result
             pictureBox3.Image = subtracted;
         }
 
