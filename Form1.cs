@@ -92,7 +92,25 @@ namespace ImageProcessing
 
         private void saveToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            saveFileDialog1.ShowDialog();
+            if (processed == null)
+            {
+                MessageBox.Show("There is not image to save", "Error", MessageBoxButtons.OK);
+                return;
+            }
+            saveFileDialog1.Filter = "PNG Image|*.png|JPEG Image|*.jpg|Bitmap Image|*.bmp";
+            saveFileDialog1.Title = "Save Processed Image";
+            if(saveFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    processed.Save(saveFileDialog1.FileName);
+                    MessageBox.Show("Image saved successfully!", "Success", MessageBoxButtons.OK);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error Saving "+ ex.Message, "Error", MessageBoxButtons.OK);
+                }
+            }
         }
 
         private void greyscalingToolStripMenuItem_Click(object sender, EventArgs e)
