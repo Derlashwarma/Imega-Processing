@@ -430,6 +430,42 @@ namespace ImageProcessing
             col_mode = 4;
         }
 
+        private void embossLaplacianToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            BasicDIP.CopyImage(ref loaded, ref processed);
+            BitmapFilter.EmbossLaplacian(processed);
+            pictureBox2.Image = processed;
+        }
+
+        private void edgeDetectQuickToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            BasicDIP.CopyImage(ref loaded, ref processed);
+            BitmapFilter.EdgeDetectQuick(processed);
+            pictureBox2.Image = processed;
+        }
+
+        private void edgeDetectHorizontalToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            BasicDIP.CopyImage(ref loaded, ref processed);
+            BitmapFilter.EdgeDetectHorizontal(processed);
+            pictureBox2.Image = processed;
+        }
+
+        private void edgeDetectVerticalToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            BasicDIP.CopyImage(ref loaded, ref processed);
+            BitmapFilter.EdgeDetectVertical(processed);
+            pictureBox2.Image = processed;
+        }
+
+        private void edgeDetectAllDirectionToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            BasicDIP.CopyImage(ref loaded, ref processed);
+            BitmapFilter.EdgeDetectVertical(processed);
+            BitmapFilter.EdgeDetectHorizontal(processed);
+            pictureBox2.Image = processed;
+        }
+
         private void button3_Click(object sender, EventArgs e)
         {
             if (loaded == null || processed == null)
